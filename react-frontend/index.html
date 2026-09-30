@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keystone Office Manager</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1" rel="stylesheet" />
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background: transparent;
+        color: #e5e7eb;
+      }
+      h1, h2, h3 {
+        font-family: 'Hanken Grotesk', sans-serif;
+      }
+      #vanta-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+      }
+    </style>
+    <!-- Three.js (obligatoire AVANT le script Vanta) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+    <!-- Vanta WAVES -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanta/0.5.24/vanta.waves.min.js"></script>
+  </head>
+  <body>
+    <div id="vanta-canvas"></div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      VANTA.WAVES({
+        el: '#vanta-canvas',
+        mouseControls: true,
+        touchControls: true,
+        gyroControls: false,
+        minHeight: 200.0,
+        minWidth: 200.0,
+        scale: 1.0,
+        scaleMobile: 1.0,
+        color: 0x0b192c,
+        backgroundColor: 0x081020,
+        shininess: 35,
+        waveHeight: 15,
+        waveSpeed: 0.75,
+        zoom: 0.9,
+      });
+    </script>
+  </body>
+</html>

@@ -1,13 +1,5 @@
-// src/domain/usecases/GetEmployees.js
-
 class GetEmployees {
-  constructor(employeeRepository) {
-    this.employeeRepository = employeeRepository;
-  }
-
-  async execute() {
-    return await this.employeeRepository.findAll();
-  }
+  constructor(repository) { this.repository = repository; }
+  async execute() { return await this.repository.findAll(); }
 }
-
 module.exports = GetEmployees;

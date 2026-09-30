@@ -1,0 +1,356 @@
+:root {
+  --text: #6b6375;
+  --text-h: #08060d;
+  --bg: #fff;
+  --border: #e5e4e7;
+  --code-bg: #f4f3ec;
+  --accent: #aa3bff;
+  --accent-bg: rgba(170, 59, 255, 0.1);
+  --accent-border: rgba(170, 59, 255, 0.5);
+  --social-bg: rgba(244, 243, 236, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 18px/145% var(--sans);
+  letter-spacing: 0.18px;
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #9ca3af;
+    --text-h: #f3f4f6;
+    --bg: #16171d;
+    --border: #2e303a;
+    --code-bg: #1f2028;
+    --accent: #c084fc;
+    --accent-bg: rgba(192, 132, 252, 0.15);
+    --accent-border: rgba(192, 132, 252, 0.5);
+    --social-bg: rgba(47, 48, 58, 0.5);
+    --shadow:
+      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  }
+
+  #social .button-icon {
+    filter: invert(1) brightness(2);
+  }
+}
+
+html,
+body,
+#root {
+  background: transparent !important;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  background: transparent;
+  min-height: 100svh;
+  box-sizing: border-box;
+}
+
+h1,
+h2 {
+  font-family: var(--heading);
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+h1 {
+  font-size: 56px;
+  letter-spacing: -1.68px;
+  margin: 32px 0;
+  @media (max-width: 1024px) {
+    font-size: 36px;
+    margin: 20px 0;
+  }
+}
+h2 {
+  font-size: 24px;
+  line-height: 118%;
+  letter-spacing: -0.24px;
+  margin: 0 0 8px;
+  @media (max-width: 1024px) {
+    font-size: 20px;
+  }
+}
+p {
+  margin: 0;
+}
+
+code,
+.counter {
+  font-family: var(--mono);
+  display: inline-flex;
+  border-radius: 4px;
+  color: var(--text-h);
+}
+
+code {
+  font-size: 15px;
+  line-height: 135%;
+  padding: 4px 8px;
+  background: var(--code-bg);
+}
+
+/* --- Fond animé plein écran de la page de connexion (aurora) --- */
+.aurora {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(45% 60% at 15% 15%, rgba(109, 40, 217, 0.55), transparent 70%),
+    radial-gradient(50% 65% at 85% 20%, rgba(37, 99, 235, 0.45), transparent 70%),
+    radial-gradient(60% 70% at 50% 95%, rgba(147, 51, 234, 0.35), transparent 70%),
+    radial-gradient(40% 55% at 88% 85%, rgba(34, 211, 238, 0.3), transparent 70%),
+    linear-gradient(135deg, #0a0616 0%, #150b33 50%, #0a1432 100%);
+  background-size: 220% 220%;
+  background-position: 0% 0%;
+  animation: auroraFlow 18s ease-in-out infinite;
+}
+
+@keyframes auroraFlow {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  33% {
+    background-position: 70% 40%;
+  }
+  66% {
+    background-position: 30% 85%;
+  }
+}
+
+/* --- Conteneurs verre dépoli (glassmorphism) --- */
+.glass-card,
+.glass-board {
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px;
+  color: #ffffff;
+}
+
+.glass-calendar {
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px;
+  color: #ffffff;
+}
+
+.glass-category {
+  background: rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px;
+  color: #ffffff !important;
+  transition: all 0.3s ease;
+}
+
+.glass-category:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  transform: translateY(-3px);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+.glass-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12) !important;
+}
+
+/* --- react-big-calendar (thème sombre glassmorphism) --- */
+.rbc-calendar {
+  background: transparent;
+  color: #ffffff;
+}
+.rbc-header {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rbc-header + .rbc-header,
+.rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+.rbc-month-view,
+.rbc-time-view,
+.rbc-agenda-view {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rbc-month-row + .rbc-month-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.rbc-off-range-bg {
+  background: rgba(255, 255, 255, 0.04);
+}
+.rbc-today {
+  background: rgba(255, 255, 255, 0.08);
+}
+.rbc-date-cell {
+  color: rgba(255, 255, 255, 0.85);
+}
+.rbc-date-cell a {
+  color: rgba(255, 255, 255, 0.85);
+}
+.rbc-off-range,
+.rbc-off-range a {
+  color: rgba(255, 255, 255, 0.35);
+}
+.rbc-time-header-content {
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rbc-time-content {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rbc-timeslot-group {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.rbc-label,
+.rbc-time-header-cell {
+  color: rgba(255, 255, 255, 0.7);
+}
+.rbc-toolbar {
+  color: #ffffff;
+}
+.rbc-toolbar label {
+  color: #ffffff;
+}
+.rbc-btn-group button {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.rbc-btn-group button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+.rbc-btn-group .rbc-active,
+.rbc-btn-group .rbc-active:hover,
+.rbc-btn-group .rbc-active:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* =====================================================================
+   1. CORPS DE PAGE TRANSPARENT (laisser Vanta visible derrière)
+   ===================================================================== */
+html,
+body,
+#root,
+#app {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Tous les wrappers de layout principaux : aucun fond opaque */
+div[class*="min-h-screen"] {
+  background: transparent !important;
+}
+
+/* =====================================================================
+   2. CONTENEUR VANTA : arrière-plan fixe derrière tout le contenu
+   ===================================================================== */
+#vanta-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1; /* Force le fond derrière */
+  pointer-events: none; /* Laisse les clics passer au contenu */
+}
+
+/* =====================================================================
+   4A. LOOK "VERRE" : cartes/inputs opaques -> verre dépoli translucide
+   ===================================================================== */
+.bg-white,
+.bg-gray-50,
+.bg-gray-100 {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.bg-white {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Bordures grises -> bordures translucides claires */
+.border-gray-100,
+.border-gray-200,
+.border-gray-300 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* =====================================================================
+   4B. TEXTES CLAIRS : lisibilité sur fond sombre
+   ===================================================================== */
+h1,
+h2,
+h3,
+h4,
+h5 {
+  color: #ffffff !important;
+}
+
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-gray-600,
+.text-gray-500,
+.text-gray-400,
+[class~="text-[#111c2d]"],
+[class~="text-[#001e40]"] {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.glass-nav {
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 0.75rem 2rem;
+  background: rgba(10, 15, 26, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

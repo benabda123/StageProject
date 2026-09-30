@@ -1,0 +1,652 @@
+networks:
+  keystone-network:
+    driver: bridge
+
+volumes:
+  keycloak-data:
+  avatar-uploads:
+
+services:
+  # 0. Keycloak Authentication Service
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8085
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
+    command: start-dev
+    ports:
+      - "8085:8080"
+    depends_on:
+      - keycloak-db
+    networks:
+      - keystone-network
+
+  # Keycloak Database
+  keycloak-db:
+    image: postgres:15-alpine
+    container_name: keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak-data:/var/lib/postgresql/data
+    networks:
+      - keystone-network
+
+  # Auth Service - Keycloak Admin API Proxy
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8084:8084"
+    environment:
+      PORT: 8084
+      KEYCLOAK_URL: http://keycloak:8080
+      REALM: keystone
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+      DB_HOST: auth-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: auth_db
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    volumes:
+      - avatar-uploads:/app/uploads
+    depends_on:
+      - keycloak
+      - auth-db
+    networks:
+      - keystone-network
+
+  # Base de données PostgreSQL pour Auth Service (codes de réinitialisation de mot de passe)
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5441:5432"
+    volumes:
+      - ./auth-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 1. Frontend React
+  react-frontend:
+    build: ./react-frontend
+    container_name: react-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./react-frontend/src:/app/src
+      - ./react-frontend/public:/app/public
+    depends_on:
+      - kong
+      - keycloak
+    networks:
+      - keystone-network
+
+  # 2. pgAdmin (Interface Visuelle BDD)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - employee-db
+      - department-db
+    networks:
+      - keystone-network
+
+  # 3. Base de données PostgreSQL pour Employee Service
+  employee-db:
+    image: postgres:15-alpine
+    container_name: employee-db
+    environment:
+      POSTGRES_DB: employee_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./employee-service/init-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - keystone-network
+
+  # 4. Le Microservice Node.js Employee Service
+  employee-service:
+    build: ./employee-service
+    container_name: employee-service
+    ports:
+      - "8082:8082"
+    environment:
+      PORT: 8082
+      DB_HOST: employee-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: employee_db
+    depends_on:
+      - employee-db
+    networks:
+      - keystone-network
+
+  # 5. Base de données PostgreSQL pour Department Service
+  department-db:
+    image: postgres:15-alpine
+    container_name: department-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: department_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./department-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 6. Le Microservice Node.js Department Service
+  department-service:
+    build: ./department-service
+    container_name: department-service
+    ports:
+      - "8083:8083"
+    environment:
+      PORT: 8083
+      DB_HOST: department-db
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      DB_NAME: department_db
+      DB_PORT: 5432
+    depends_on:
+      - department-db
+    networks:
+      - keystone-network
+
+  # 7. Base de données PostgreSQL pour Leave Service
+  leave-db:
+    image: postgres:15-alpine
+    container_name: leave-db
+    environment:
+      POSTGRES_DB: leave_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./leave-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 8. Le Microservice Node.js Leave Service
+  leave-service:
+    build: ./leave-service
+    container_name: leave-service
+    ports:
+      - "8086:8086"
+    environment:
+      PORT: 8086
+      DB_HOST: leave-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: leave_db
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+    depends_on:
+      - leave-db
+    networks:
+      - keystone-network
+
+  # 9. Base de données PostgreSQL pour Task Service
+  task-db:
+    image: postgres:15-alpine
+    container_name: task-db
+    environment:
+      POSTGRES_DB: task_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - ./task-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 10. Le Microservice Node.js Task Service
+  task-service:
+    build: ./task-service
+    container_name: task-service
+    environment:
+      PORT: 8087
+      DB_HOST: task-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: task_db
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+    depends_on:
+      - task-db
+    networks:
+      - keystone-network
+
+  # 11. Base de données PostgreSQL pour Meeting Service
+  meeting-db:
+    image: postgres:15-alpine
+    container_name: meeting-db
+    environment:
+      POSTGRES_DB: meeting_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - ./meeting-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 12. Le Microservice Node.js Meeting Service
+  meeting-service:
+    build: ./meeting-service
+    container_name: meeting-service
+    environment:
+      PORT: 8088
+      DB_HOST: meeting-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: meeting_db
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+      AUTH_SERVICE_URL: http://auth-service:8084
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: http://localhost:8000/meetings/google/callback
+      GOOGLE_OAUTH_SUCCESS_REDIRECT: http://localhost:3001/meetings?google_connected=true
+    depends_on:
+      - meeting-db
+    networks:
+      - keystone-network
+
+  # 13. Base de données PostgreSQL pour Notification Service
+  notification-db:
+    image: postgres:15-alpine
+    container_name: notification-db
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5437:5432"
+    volumes:
+      - ./notification-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 14. Le Microservice Node.js Notification Service
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports:
+      - "8089:8089"
+    environment:
+      PORT: 8089
+      DB_HOST: notification-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: notification_db
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+      AUTH_SERVICE_URL: http://auth-service:8084
+      EMPLOYEE_SERVICE_URL: http://employee-service:8082
+    volumes:
+      - ./notification-service:/app
+      - /app/node_modules
+    depends_on:
+      - notification-db
+      - auth-service
+    networks:
+      - keystone-network
+
+  # 15. Base de données PostgreSQL pour Message Service
+  messages-db:
+    image: postgres:15-alpine
+    container_name: messages-db
+    environment:
+      POSTGRES_DB: messages_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5438:5432"
+    volumes:
+      - ./message-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 16. Le Microservice Node.js Message Service (Architecture Hexagonale)
+  message-service:
+    build: ./message-service
+    container_name: message-service
+    ports:
+      - "8090:8090"
+    environment:
+      PORT: 8090
+      DB_HOST: messages-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: messages_db
+    volumes:
+      - ./message-service:/app
+      - /app/node_modules
+    depends_on:
+      - messages-db
+      - auth-service
+    networks:
+      - keystone-network
+
+  # 17. Dashboard Service (Statistics Aggregator)
+  dashboard-service:
+    build: ./dashboard-service
+    container_name: dashboard-service
+    ports:
+      - "8091:8091"
+    environment:
+      PORT: 8091
+      EMPLOYEE_SERVICE_URL: http://employee-service:8082
+      LEAVE_SERVICE_URL: http://leave-service:8086
+      MEETING_SERVICE_URL: http://meeting-service:8088
+      TASK_SERVICE_URL: http://task-service:8087
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+    depends_on:
+      - employee-service
+      - leave-service
+      - meeting-service
+      - task-service
+    networks:
+      - keystone-network
+
+  # 18. Base de données PostgreSQL pour Learning Service
+  learning-db:
+    image: postgres:15-alpine
+    container_name: learning-db
+    environment:
+      POSTGRES_DB: learning_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5439:5432"
+    volumes:
+      - ./learning-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 19. Learning Service — YouTube Search + Favorites
+  learning-service:
+    build: ./learning-service
+    container_name: learning-service
+    ports:
+      - "8092:8092"
+    environment:
+      PORT: 8092
+      DB_HOST: learning-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: learning_db
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+    depends_on:
+      - learning-db
+    networks:
+      - keystone-network
+
+  # 22. Base de données PostgreSQL pour Attendance Service
+  attendance-db:
+    image: postgres:15-alpine
+    container_name: attendance-db
+    environment:
+      POSTGRES_DB: attendance_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5442:5432"
+    volumes:
+      - ./attendance-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 23. Attendance Service — Pointage GPS anti-fraude
+  attendance-service:
+    build: ./attendance-service
+    container_name: attendance-service
+    ports:
+      - "8094:8094"
+    environment:
+      PORT: 8094
+      DB_HOST: attendance-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: attendance_db
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+      LEAVE_SERVICE_URL: http://leave-service:8086
+      OFFICE_LATITUDE: "36.8416929"
+      OFFICE_LONGITUDE: "10.1818909"
+      MAX_CHECKIN_RADIUS_METERS: "200"
+    depends_on:
+      - attendance-db
+      - leave-service
+    networks:
+      - keystone-network
+
+  # 24. Base de données PostgreSQL pour Anomaly Detection Service
+  anomaly-db:
+    image: postgres:15-alpine
+    container_name: anomaly-db
+    environment:
+      POSTGRES_DB: anomaly_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5443:5432"
+    volumes:
+      - ./anomaly-detection-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 25. Anomaly Detection Service — AI-powered attendance analysis
+  anomaly-detection-service:
+    build: ./anomaly-detection-service
+    container_name: anomaly-detection-service
+    ports:
+      - "8095:8095"
+    environment:
+      PORT: 8095
+      DB_HOST: anomaly-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: anomaly_db
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+      ATTENDANCE_SERVICE_URL: http://attendance-service:8094
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ROBOTIC_STDDEV_THRESHOLD: "5"
+      WEEKDAY_ABSENCE_THRESHOLD: "0.4"
+      DURATION_ZSCORE_THRESHOLD: "2"
+      MIN_RECORDS_FOR_ANALYSIS: "5"
+      ANALYSIS_PERIOD_DAYS: "30"
+    depends_on:
+      - anomaly-db
+      - attendance-service
+    networks:
+      - keystone-network
+
+  # 26. Base de données PostgreSQL pour Poll Service
+  poll-db:
+    image: postgres:15-alpine
+    container_name: poll-db
+    environment:
+      POSTGRES_DB: poll_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5444:5432"
+    volumes:
+      - ./poll-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 27. Poll Service — Sondages avec temps limite
+  poll-service:
+    build: ./poll-service
+    container_name: poll-service
+    ports:
+      - "8096:8096"
+    environment:
+      PORT: 8096
+      DB_HOST: poll-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: poll_db
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+      NOTIFICATION_SERVICE_URL: http://notification-service:8089
+      AUTH_SERVICE_URL: http://auth-service:8084
+    depends_on:
+      - poll-db
+      - notification-service
+    networks:
+      - keystone-network
+
+  # 28. CV Parser Service — Stateless, Gemini AI CV analysis
+  cv-parser-service:
+    build: ./cv-parser-service
+    container_name: cv-parser-service
+    environment:
+      PORT: 8097
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    networks:
+      - keystone-network
+
+  # Kong API Gateway
+  kong:
+    image: kong:3.4
+    container_name: kong-gateway
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_DNS_TTL: "0"
+    volumes:
+      - ./kong.yml:/usr/local/kong/declarative/kong.yml
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    depends_on:
+      - department-service
+      - employee-service
+      - auth-service
+      - leave-service
+      - task-service
+      - meeting-service
+      - notification-service
+      - message-service
+      - dashboard-service
+      - learning-service
+      - ticket-service
+      - ai-assistant-service
+      - attendance-service
+      - anomaly-detection-service
+      - poll-service
+      - cv-parser-service
+    networks:
+      - keystone-network
+
+  # 20. Base de données PostgreSQL pour Ticket Service
+  ticket-db:
+    image: postgres:15-alpine
+    container_name: ticket-db
+    environment:
+      POSTGRES_DB: ticket_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5440:5432"
+    volumes:
+      - ./ticket-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - keystone-network
+
+  # 21. Le Microservice Node.js Ticket Service (IT Support)
+  ticket-service:
+    build: ./ticket-service
+    container_name: ticket-service
+    environment:
+      PORT: 8093
+      DB_HOST: ticket-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: ticket_db
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      - ticket-db
+    networks:
+      - keystone-network
+
+  # 22. Le Microservice Node.js AI Assistant Service
+  ai-assistant-service:
+    build: ./ai-assistant-service
+    container_name: ai-assistant-service
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      PORT: 8092
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      INTERNAL_API_KEY: JMWBrs0AfidlYFRaZn7ghGpT2mvXSqx9E1ytkO5zeKcIV4QNwHo83bCLDjUP6u
+      AUTH_SERVICE_URL: http://auth-service:8084
+      TASK_SERVICE_URL: http://task-service:8087
+      MEETING_SERVICE_URL: http://meeting-service:8088
+      DEPARTMENT_SERVICE_URL: http://department-service:8083
+      LEAVE_SERVICE_URL: http://leave-service:8086
+    volumes:
+      - ./ai-assistant-service:/app
+      - /app/node_modules
+    depends_on:
+      - auth-service
+      - task-service
+      - meeting-service
+      - department-service
+      - leave-service
+    networks:
+      - keystone-network

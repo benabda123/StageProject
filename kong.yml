@@ -1,0 +1,618 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: employee-service
+    url: http://employee-service:8082
+    routes:
+      - name: employee-route
+        paths:
+          - /employees
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: department-service
+    url: http://department-service:8083
+    routes:
+      - name: department-route
+        paths:
+          - /departments
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: auth-service
+    url: http://auth-service:8084
+    routes:
+      - name: auth-route
+        paths:
+          - /auth
+        strip_path: true
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+              exposed_headers:
+                - Authorization
+              max_age: 3600
+              credentials: true
+          - name: jwt
+      # Route publique (SANS plugin jwt) pour les images d'avatar :
+      # Kong fait correspondre le chemin le plus long, donc /auth/profile/uploads/*
+      # passe par cette route et contourne la vérification JWT, tandis que tout
+      # le reste de /auth/* reste protégé. strip_path:false conserve le préfixe
+      # complet (le service sert les fichiers sur /auth/profile/uploads).
+      - name: auth-route-uploads
+        paths:
+          - /auth/profile/uploads
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+              exposed_headers:
+                - Authorization
+              max_age: 3600
+              credentials: true
+      # Routes PUBLIQUES (SANS plugin jwt) pour la réinitialisation de mot de passe :
+      # l'utilisateur n'est pas connecté à ce stade. Kong fait correspondre le chemin
+      # le plus long, donc /auth/forgot-password et /auth/reset-password passent par
+      # cette route et contournent la vérification JWT, tandis que tout le reste de
+      # /auth/* garde sa protection actuelle (ne pas modifier auth-route).
+      # strip_path:false conserve le préfixe complet (le service sert sur /auth/...).
+      - name: auth-route-public
+        paths:
+          - /auth/forgot-password
+          - /auth/reset-password
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+              exposed_headers:
+                - Authorization
+              max_age: 3600
+              credentials: true
+
+  - name: leave-service
+    url: http://leave-service:8086
+    routes:
+      - name: leave-route
+        paths:
+          - /leaves
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: task-service
+    url: http://task-service:8087
+    routes:
+      - name: task-route
+        paths:
+          - /tasks
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: meeting-service
+    url: http://meeting-service:8088
+    routes:
+      - name: meeting-route
+        paths:
+          - /meetings
+        strip_path: false
+      - name: rooms-route
+        paths:
+          - /rooms
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  # Routes publiques du meeting-service (SANS JWT) — service séparé pointant vers le même upstream
+  # Nécessaire car Kong DB-less applique les plugins service à TOUTES ses routes
+  - name: meeting-service-public
+    url: http://meeting-service:8088
+    routes:
+      # Google redirige ici après consentement OAuth — pas de JWT possible
+      - name: meeting-google-callback-route
+        paths:
+          - /meetings/google/callback
+        strip_path: false
+      # Le navigateur navigue vers cette URL (window.location.href) — pas de JWT header possible
+      # Le JWT est passé en query param ?access_token=... et vérifié par authenticateFromHeaderOrQuery
+      - name: meeting-google-connect-route
+        paths:
+          - /meetings/google/connect
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+
+  - name: notification-service
+    url: http://notification-service:8089
+    routes:
+      - name: notification-route
+        paths:
+          - /notifications
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: message-service
+    url: http://message-service:8090
+    routes:
+      - name: message-route
+        paths:
+          - /messages
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: dashboard-service
+    url: http://dashboard-service:8091
+    routes:
+      - name: dashboard-route
+        paths:
+          - /dashboard
+        strip_path: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: learning-service
+    url: http://learning-service:8092
+    routes:
+      - name: learning-route
+        paths:
+          - /learning
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: ticket-service
+    url: http://ticket-service:8093
+    routes:
+      - name: ticket-route
+        paths:
+          - /tickets
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: ai-assistant-service
+    url: http://ai-assistant-service:8092
+    routes:
+      - name: ai-route
+        paths:
+          - /ai
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - OPTIONS
+          headers:
+            - Accept
+            - Content-Type
+            - Authorization
+          credentials: true
+      - name: jwt
+
+  - name: attendance-service
+    url: http://attendance-service:8094
+    routes:
+      - name: attendance-route
+        paths:
+          - /attendance
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: anomaly-detection-service
+    url: http://anomaly-detection-service:8095
+    routes:
+      - name: anomaly-route
+        paths:
+          - /anomalies
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: poll-service
+    url: http://poll-service:8096
+    routes:
+      - name: poll-route
+        paths:
+          - /polls
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+  - name: cv-parser-service
+    url: http://cv-parser-service:8097
+    routes:
+      - name: cv-route
+        paths:
+          - /cv
+        strip_path: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - POST
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+          exposed_headers:
+            - Authorization
+          max_age: 3600
+          credentials: true
+      - name: jwt
+
+consumers:
+
+  - username: keycloak
+    custom_id: keycloak-realm
+    jwt_secrets:
+      - algorithm: RS256
+        key: "http://localhost:8085/realms/keystone"
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmPdgzrLg/JhtI8HAw726
+          lB8NfymjglYE9PUKS2ZJOnMRjj6o1wQbOs7pcR0OLhd2pmyMLYNQWwLlqtQ5R4FW
+          CqDL2uamIKGLegCld9hA2njOMQ/OS+5FKqsoTXBpdc7zqh9zJcOMNO1vI9Gtaxgk
+          AzkJ5Dl5GGzKheFzpZgsBu28yl4XHG9c2EzsZZ/wE8tJBz+ZHIusBNfPCYhSQ126
+          1cMqvHDPTAvqSLeXvySRnaNWUGFOqEG5KWbcFCry4gt/p4pWvxHXqhpq+KMrSgbv
+          K09VXzcdLsWoOdYlvNQ7a2jLotEdOTlXS81Xk5Tjo/mib8kBEUk2v6PMpmGdv61W
+          QQIDAQAB
+          -----END PUBLIC KEY-----
